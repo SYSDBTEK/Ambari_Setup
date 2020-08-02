@@ -1,0 +1,93 @@
+---
+  - hosts: ambari
+    gather_facts: yes
+    become: true
+    vars:
+        run_mysql_tasks: false
+    tasks:
+      - name: Remove apt lock file
+        file:
+          state: absent
+          path: "/var/lib/dpkg/lock-frontend"
+        become: true
+        tags: apt
+
+      - name: Remove apt lock file
+        file:
+          state: absent
+          path: "/var/lib/dpkg/lock"
+
+      - name: Install dependency packages
+        apt:
+          pkg:
+            - software-properties-common 
+            - ntp 
+            - ntpdate
+            - openjdk-8-jdk
+            - ntp
+          #update_cache: yes
+
+      - name: Set timezone to Asia/Tokyo
+        timezone:
+          name: Asia/Tokyo
+
+      - name: Install NTP
+        apt: package=ntp,ntpdate state=present update_cache=yes
+        tags: ntp
+      
+      - name: Make sure NTP is started up
+        service: name=ntp state=started enabled=yes
+        tags: ntp
+
+      - name: Download Repo
+        shell: wget -O /etc/apt/sources.list.d/ambari.list http://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/2.7.3.0/ambari.list
+
+      - name: Add an apt key by id from a keyserver
+        apt_key:
+          keyserver: keyserver.ubuntu.com
+          id: B9733A7A07513CAD
+
+      - name: Install ambari agent packages
+        apt:
+          pkg:
+            - ambari-agent 
+          update_cache: yes
+
+      - name: Set Java_home for All Users
+        copy:
+          dest: "/etc/profile.d/set_java_home.sh"
+          content: |
+            export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+            export PATH=$JAVA_HOME/bin:$PATH
+
+      - name: Creating the ambari-agent.ini
+        template:
+          src: 'ambari-agent.ini'
+          dest: '/etc/ambari-agent/conf/ambari-agent.ini'
+
+      - name: Install ambari-server
+        apt:
+          name: ambari-server
+          state: present
+        when: node_type == 'master'
+
+      - name: Copy mysql-connector-java-5.1.49.jar
+        copy:
+          src: 'files/mysql-connector-java-5.1.49.jar'
+          dest: '/usr/share/java/mysql-connector-java-5.1.49.jar'
+        when: node_type == 'master'
+
+      - name: Create a symbolic link for mysql-connector-java-5.1.49.jar
+        file:
+          src: /usr/share/java/mysql-connector-java-5.1.49.jar
+          dest: /var/lib/ambari-server/resources/mysql-connector-java.jar
+          state: link
+        when: node_type == 'master'
+
+      # - name: start Ambari agent
+      #   shell: "ambari-agent start"
+
+
+
+
+

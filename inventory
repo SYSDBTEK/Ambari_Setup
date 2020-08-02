@@ -1,0 +1,4 @@
+[ambari]
+ambari01 ansible_host=192.168.1.201 node_type=master
+ambari02 ansible_host=192.168.1.202 node_type=slave
+ambari03 ansible_host=192.168.1.203 node_type=slave
